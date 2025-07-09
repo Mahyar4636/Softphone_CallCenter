@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Softphone</RootNamespace>
     <AssemblyName>Softphone</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -81,15 +81,6 @@
     <ApplicationIcon>IPhone-Black-Apple.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NAudio">
-      <HintPath>bin\NAudio.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.WindowsMediaFormat">
-      <HintPath>bin\NAudio.WindowsMediaFormat.dll</HintPath>
-    </Reference>
-    <Reference Include="OzekiSDK">
-      <HintPath>C:\Program Files\Ozeki\Ozeki SDK\SDK\NET4\OzekiSDK.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -159,6 +150,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="SoftPhoneManager.cs" />
     <Compile Include="statusAccount.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -361,6 +353,14 @@
   <ItemGroup>
     <Content Include="IPhone-Black-Apple.ico" />
     <None Include="Resource\dialpad\No Audio_32px.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NAudio">
+      <Version>2.2.1</Version>
+    </PackageReference>
+    <PackageReference Include="ozeki.voip.sip.client">
+      <Version>11.2.4</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

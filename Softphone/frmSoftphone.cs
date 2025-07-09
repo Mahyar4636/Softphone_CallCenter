@@ -1,186 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Threading;
-using System.IO;
-using System.Media;
-using Ozeki.Media;
+﻿using NAudio.CoreAudioApi;
 using Ozeki.VoIP;
-using NAudio.CoreAudioApi;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Media;
+using System.Threading;
+using System.Windows.Forms;
 namespace Softphone
 {
     public partial class frmSoftphone : Form
     {
-        #region Softphone Method, Properties
-
         #region Properties 
+
+        internal static bool isDisplayNameChange = false;
         private NAudio.CoreAudioApi.MMDevice[] arrayDevices = new NAudio.CoreAudioApi.MMDevice[3];
         NAudio.CoreAudioApi.MMDeviceEnumerator Devices = new NAudio.CoreAudioApi.MMDeviceEnumerator();
-        internal static bool isDisplayNameChange = false;
+        public static string[] infoAcc = new string[6];
         List<TimeCall> HistoryCall = new List<TimeCall>();
         private DateTime Today = new DateTime();
         List<string> InfoHistory = new List<string>();
         private int minuteCall;
         private int secondCall;
-
-        public static string[] infoAcc = new string[6];
-        public static SIPAccount accountSipInfo = new SIPAccount();
-        public static ISoftPhone _softPhone;
-        public static IPhoneLine _phoneLine;
-        //public static RegState _phoneLineInformation;
-        private IPhoneCall _call;
-        private Microphone _microphone = Microphone.GetDefaultDevice();
-        private Speaker _speaker = Speaker.GetDefaultDevice();
-        private MediaConnector _connector = new MediaConnector();
-        private PhoneCallAudioSender _mediaSender = new PhoneCallAudioSender();
-        private PhoneCallAudioReceiver _mediaReceiver = new PhoneCallAudioReceiver();
-        public static AccountInfo SipAccount = new AccountInfo();
-        private CallerInfo Caller = new CallerInfo();
-
         private SoundPlayer player;
-        private bool _inComingCall;
-        private EventHandler<CallStateChangedArgs> CallStateChanged;
-        private bool isInComingCompleted = false;
+        private SoftPhoneManager _softPhoneManager = new SoftPhoneManager();
         #endregion
 
-        #region Initializes Sip, Register, Subcribe events ,Refesh Register
-
-
-        /// <summary>
-        /// Initializes the softphone logic
-        /// Subscribes change events to get notifications.
-        /// Register info event
-        /// Incoming call event
-        /// </summary>
-        private void InitializeSoftPhone()
-        {
-            try
-            {
-                var devices = Devices.EnumerateAudioEndPoints(DataFlow.All, 
-                    NAudio.CoreAudioApi.DeviceState.Active);
-                arrayDevices = devices.ToArray();
-                string userAgent = "Snow";
-                _softPhone = SoftPhoneFactory.CreateSoftPhone(
-                    SoftPhoneFactory.GetLocalIP(),
-                    7000, 9000, userAgent);
-
-                InvokeGUIThread(() =>
-                {
-                    lb_Log.Items.Add("Softphone created!");
-                });
-
-                _softPhone.IncomingCall += softPhone_inComingCall;
-
-
-                InvokeGUIThread(() =>
-                {
-                    lb_Log.Items.Add("SIP account created!");
-                });
-                _phoneLine = _softPhone.CreatePhoneLine(accountSipInfo);
-
-                _phoneLine.RegistrationStateChanged += phoneLine_PhoneLineInformation;
-                InvokeGUIThread(() =>
-                {
-                    lb_Log.Items.Add("Phoneline created.");
-                });
-                _softPhone.RegisterPhoneLine(_phoneLine);
-
-                _inComingCall = false;
-
-                ConnectMedia();
-            }
-            catch (Exception ex)
-            {
-                InvokeGUIThread(() =>
-                {
-                    lb_Log.Items.Add("Local IP error! " + ex);
-                });
-            }
-        }
-        public static void RefeshRegister()
-        {
-            _softPhone.UnregisterPhoneLine(_phoneLine);
-            _phoneLine = _softPhone.CreatePhoneLine(accountSipInfo);
-            _softPhone.RegisterPhoneLine(_phoneLine);
-
-        }
+        #region Check Status Variable 
+        public static bool isRegister = false;
+        public static bool isHold = false;
+        public static bool isCalling = false;
+        public static bool isComing = false;
+        public static bool isRejecting = false;
+        public static bool isMissing = true;
         #endregion
-
-        #region Sounds, Setup and Conect devices
-        private void StartDevices()
-        {
-            StartSpeaker();
-            StartMicro();
-        }
-        private void StopDevices()
-        {
-            StopMicro();
-            StopSpeaker();
-        }
-        private void ConnectMedia()
-        {
-            if (_microphone != null)
-            {
-                _connector.Connect(_microphone, _mediaSender);
-            }
-
-            if (_speaker != null)
-            {
-                _connector.Connect(_mediaReceiver, _speaker);
-            }
-        }
-        private void DisconnectMedia()
-        {
-            if (_microphone != null)
-            {
-                _connector.Disconnect(_microphone, _mediaSender);
-            }
-
-            if (_speaker != null)
-            {
-                _connector.Disconnect(_mediaReceiver, _speaker);
-            }
-        }
-        private void StopMicro()
-        {
-            if (_microphone != null)
-            {
-                _microphone.Stop();
-                InvokeGUIThread(() => { lb_Log.Items.Add("Microphone Stopped."); });
-            }
-        }
-        private void StartMicro()
-        {
-            _microphone = Microphone.GetDefaultDevice();
-            if (_microphone != null)
-            {
-                _microphone.Start();
-                InvokeGUIThread(() => { lb_Log.Items.Add("Microphone Started."); });
-            }
-        }
-        private void StopSpeaker()
-        {
-            if (_speaker != null)
-            {
-                _speaker.Stop();
-                InvokeGUIThread(() => { lb_Log.Items.Add("Speaker Stopped."); });
-            }
-        }
-        private void StartSpeaker()
-        {
-            _speaker = Speaker.GetDefaultDevice();
-            if (_speaker != null)
-            {
-                _speaker.Start();
-                InvokeGUIThread(() => { lb_Log.Items.Add("Speaker Started."); });
-            }
-        }
 
         #region Sound Style
         private const int ringing = 0;
@@ -188,7 +42,7 @@ namespace Softphone
         private const int holding = 2;
         private const int calling = 3;
         private const int buttonpress = 4;
-        #endregion
+
         /// <summary>
         /// Calling
         /// Ringing
@@ -258,498 +112,25 @@ namespace Softphone
         }
         #endregion
 
-        #region Handing Events
-
-        private void softPhone_inComingCall(object sender, VoIPEventArgs<IPhoneCall> e)
-        {
-            InvokeGUIThread(() =>
-            {
-                lb_Log.Items.Add("Incoming call from: " + e.Item.DialInfo.ToString());
-            }); //tb_Display.Text = "Ringing (" + e.Item.DialInfo.Dialed + ")";
-            Caller.Id = e.Item.DialInfo.CallerID;
-            Caller.Name = e.Item.DialInfo.CallerDisplay;
-            _call = e.Item;
-            SubcribedCallEvents();
-            _inComingCall = true;
-            InvokeGUIThread(() =>
-            {
-
-            });
-            isInComingCompleted = true;
-            isCalling = false;
-            SetupIncomingCall();
-
-        }
-        private void phoneLine_PhoneLineInformation(object sender, RegistrationStateChangedArgs e)
-        {
-
-            InvokeGUIThread(() =>
-            {
-                //dont do anything
-            });
-        }
-        private void call_CallStateChanged(object sender, CallStateChangedArgs e)
-        {
-            try
-            {
-                InvokeGUIThread(() => { lb_Log.Items.Add("Callstate changed." + e.State.ToString()); });// tb_Display.Text = e.State.ToString();
-
-                if (e.State == CallState.Answered)
-                {
-                    player.Stop();
-                    StartDevices();
-
-                    _mediaReceiver.AttachToCall(_call);
-                    _mediaSender.AttachToCall(_call);
-
-                    SetupAnswered();
-                    InvokeGUIThread(() => { lb_Log.Items.Add("Call started."); });
-                }
-
-                if (e.State == CallState.InCall)
-                {
-                    player.Stop();
-                    StartDevices();
-                    InvokeGUIThread(() =>
-                    {
-
-                    });
-                }
-
-                if (e.State.IsCallEnded() || e.State == CallState.Rejected)
-                {
-                    StopDevices();
-
-                    _mediaReceiver.Detach();
-                    _mediaSender.Detach();
-
-                    UnSubcribedCallEvents();
-                    if (isInComingCompleted)
-                    {
-                        isInComingCompleted = false;
-                        InvokeGUIThread(() =>
-                        {
-
-                        });
-                    }
-                    InvokeGUIThread(() =>
-                    {
-
-                    });
-                    _call = null;
-                    EndCalling();
-                    InvokeGUIThread(() =>
-                    {
-                        lb_Log.Items.Add("Call ended.");
-                        playSound(hangup);
-                    });
-
-                }
-
-                if (e.State == CallState.LocalHeld)
-                {
-                    InvokeGUIThread(() => { lb_Log.Items.Add("Call Holding."); });
-                    StopDevices();
-                }
-                if (e.State == CallState.RemoteHeld)
-                {
-                    InvokeGUIThread(() => { lb_Log.Items.Add("Callee Holding."); });
-                    InvokeGUIThread(() => { playSound(holding); });
-                }
-                if (e.State == CallState.Ringing)
-                {
-                    InvokeGUIThread(() =>
-                    {
-                        if (isCalling)
-                            playSound(calling);
-                        else
-                            playSound(ringing);
-                    });
-
-                }
-
-                DispatchAsync(() =>
-                {
-                    var handler = CallStateChanged;
-                    if (handler != null)
-                        handler(this, e);
-                });
-            }
-            catch (Exception ex)
-            {
-
-            }
-        }
-        private void DispatchAsync(Action action)
-        {
-            var task = new WaitCallback(o => action.Invoke());
-            ThreadPool.QueueUserWorkItem(task);
-        }
-        #endregion
-
-        #region Handling Threading
-        private void InvokeGUIThread(Action action)
-        {
-            try
-            {
-                Invoke(action);
-            }
-            catch (Exception ex)
-            {
-
-            }
-        }
-        #endregion
-
-        #region Subcribe, Unsubcribe Calling events
-        private void SubcribedCallEvents()
-        {
-            try
-            {
-                _call.CallStateChanged += (call_CallStateChanged);
-            }
-            catch (Exception ex)
-            {
-                InvokeGUIThread(() => { lb_Log.Items.Add("Error: " + ex); });
-            }
-        }
-        private void UnSubcribedCallEvents()
-        {
-            try
-            {
-                _call.CallStateChanged -= (call_CallStateChanged);
-            }
-            catch (Exception ex)
-            {
-                InvokeGUIThread(() => { lb_Log.Items.Add("Error: " + ex); });
-            }
-        }
-
-        #endregion
-
-        #region Check Status Variable 
-        public static bool isRegister = false;
-        public static bool isHold = false;
-        public static bool isCalling = false;
-        public static bool isComing = false;
-        public static bool isRejecting = false;
-        public static bool isMissing = true;
-        #endregion
-
-        #region Information CallerId, CallerDisplay
-        private string GetCallerID()
-        {
-            return Caller.Id;
-        }
-        private string GetCallerDisplay()
-        {
-            return Caller.Name;
-        }
-        #endregion
-
-        #region Information Issues registering Sip Account
-        private string GetInfoError()
-        {
-            return SipAccount.StatusInfor();
-
-        }
-        #endregion
-
-        #region Setup When CallEvent Change
-        private void SetupIncomingCall()
-        {
-            InvokeGUIThread(() =>
-            {
-                this.Width = 767;
-                lblInfoCall.Text = "InComing";
-                lblName.Text = GetCallerDisplay();
-                lblNumberCaller.Text = GetCallerID();
-                isComing = true;
-                pnlControlIncoming.Visible = true;
-                RefeshControlCall();
-            });
-        }
-        private void SetupAnswered()
-        {
-            InvokeGUIThread(() =>
-            {
-                pnlControlIncoming.Visible = false;
-                isMissing = false;
-                pnlControl.Enabled = true;
-                btnHangup.Visible = true;
-                lblInfoCall.Text = "InCall";
-                RefeshTimerCall();
-                timerCall.Start();
-                meterSoundMicro.Start();
-            });
-        }
-        private void SetupHolding()
-        {
-            if (isActiveHold)
-            {
-                lblInfoCall.Text = "Holding";
-            }
-            else
-            {
-                lblInfoCall.Text = "Incall";
-            }
-
-        }
-        private void EndCalling()
-        {
-
-            InvokeGUIThread(() =>
-            {
-                pnlControl.Enabled = false;
-                pnlControlIncoming.Visible = false;
-                btnHangup.Visible = false;
-                lblInfoCall.Text = "Call Ended";
-                this.Width = 302;
-                timerCall.Stop();
-                lblTimerCall.Visible = false;
-                GetInforIDCall();
-                meterSoundMicro.Stop();
-            });
-        }
-        //working on
-        private void GetInforIDCall()
-        {
-            TimeCall infoCallId = new TimeCall();
-            infoCallId.timeCall = lblTimerCall.Text;
-            if (isCalling)
-            {
-                infoCallId.idCall = ListIDCall.calling;
-                infoCallId.name = txtNumber.Text;
-                infoCallId.number = txtNumber.Text;
-            }
-            else if (isComing)
-            {
-                if (isRejecting || isMissing) infoCallId.idCall = ListIDCall.missing;
-                else infoCallId.idCall = ListIDCall.inComing;
-                infoCallId.name = GetCallerDisplay();
-                infoCallId.number = GetCallerID();
-            }
-            Today = DateTime.Now;
-            infoCallId.dateCall = Today.ToShortDateString();
-            infoCallId.timeDateCall = Today.ToShortTimeString();
-            lb_Log.Items.Add(infoCallId.getData());
-            HistoryCall.Add(infoCallId);
-            InfoHistory.Add(infoCallId.getData());
-            txtNumber.Text = string.Empty;
-            txtNumber.Focus();
-        }
-        private void SetupCalling()
-        {
-            btnHangup.Visible = true;
-            isCalling = true;
-            lblInfoCall.Text = "Calling";
-            lblName.Text = txtNumber.Text;
-            lblNumberCaller.Text = txtNumber.Text;
-            //isMissing = false;
-        }
-        private void RefeshIdCall()
-        {
-            isCalling = false;
-            isComing = false;
-            isRejecting = false;
-            isMissing = true;
-        }
-        private void RefeshTimerCall()
-        {
-            lblTimerCall.Text = "00:00";
-            lblTimerCall.Visible = true;
-            minuteCall = 0;
-            secondCall = 0;
-
-        }
-        private void RefeshControlCall()
-        {
-            isActiveHold = false;
-            isActiveMute = false;
-            isActiveNosound = false;
-            isActiveRecord = false;
-            btnHold.BackColor = SystemColors.InfoText;
-            btnSpeaker.BackColor = SystemColors.InfoText;
-            btnMute.BackColor = SystemColors.InfoText;
-            btnRecord.BackColor = SystemColors.InfoText;
-        }
-        #endregion
-
-        #region Call, Calling Answer Reject Hangup Hold Ignore
-
-        private void Calling()
-        {
-            if (_call != null || !(_phoneLine.RegState == RegState.RegistrationSucceeded))
-            {
-                InvokeGUIThread(() =>
-                {
-                    lb_Log.Items.Add("Call error: " +
-                    _phoneLine.RegistrationInfo.StatusCode.ToString());
-                });
-                return;
-            }
-            SetupCalling();
-            _call = _softPhone.CreateCallObject(_phoneLine, txtNumber.Text);
-            SubcribedCallEvents();
-            _call.Start();
-            RefeshControlCall();
-
-
-
-        }
-        private void Answering()
-        {
-            if (_call != null)
-            {
-                _inComingCall = false;
-                _call.Answer();
-                InvokeGUIThread(() => { lb_Log.Items.Add("Call accepted."); });
-            }
-        }
-        private void Hanguping()
-        {
-            if (_call != null)
-            {
-                if (_inComingCall && _call.CallState == CallState.Ringing)
-                {
-                    _call.Reject();
-                    InvokeGUIThread(() => { lb_Log.Items.Add("Call rejected."); });
-                }
-                else
-                {
-                    _call.HangUp();
-                    _inComingCall = false;
-                    InvokeGUIThread(() => { lb_Log.Items.Add("Call hanged up."); });
-                }
-
-                _call = null;
-            }
-
-
-        }
-        private void Holding()
-        {
-            if (_call == null)
-                return;
-
-            if (!isHold)
-            {
-                _call.Hold();
-                isHold = true;
-                InvokeGUIThread(() => { playSound(holding); });
-
-            }
-            else
-            {
-                isHold = false;
-                _call.Unhold();
-                player.Stop();
-            }
-            SetupHolding();
-        }
-        private void Rejecting()
-        {
-            if (_call != null) _call.Reject();
-        }
-        private void Ignoring()
-        {
-
-        }
-        #endregion
-
-        #endregion
-
-        #region Handling File ,Setup information Account
-
-        public static void SetInfoAcc()
-        {
-            accountSipInfo.DisplayName = infoAcc[0];
-            accountSipInfo.DomainServerHost = infoAcc[1];
-            accountSipInfo.UserName = infoAcc[2];
-            accountSipInfo.RegisterName = infoAcc[2];
-            accountSipInfo.RegisterPassword = infoAcc[3];
-            if (infoAcc[4] != "") accountSipInfo.DomainServerPort = Convert.ToInt32(infoAcc[4]);
-            else accountSipInfo.DomainServerPort = 5060;
-            accountSipInfo.RegistrationRequired = true;
-
-        }
-        private string CreatFile(string fileName)
-        {
-            //create path file
-            string file = Environment.CurrentDirectory + @"\" + fileName;
-
-            if (!File.Exists(file))
-            {
-                File.CreateText(file);
-            }
-            return file;
-        }
-        private string WriteFile(string fileName, string[] info, int numberLine)
-        {
-            //writing information into file
-            try
-            {
-                //if (!File.Exists(fileName)) return "Error";
-                using (StreamWriter accountConfig = new StreamWriter(fileName))
-                {
-                    //writing    
-                    for (int i = 0; i < numberLine; ++i)
-                    {
-                        accountConfig.WriteLine(info[i]);
-                    }
-
-                }
-                return "Succecced";
-            }
-            catch (Exception ex)
-            {
-                return "Error" + ex;
-            }
-        }
-        private string ReadFile(string fileName, string[] info, int numberLine)
-        {
-            //if (!File.Exists(fileName)) return "Error";
-            try
-            {
-                using (StreamReader accountConfig = new StreamReader(fileName))
-                {
-                    //reading 
-                    for (int i = 0; i < numberLine; ++i)
-                    {
-                        info[i] = accountConfig.ReadLine();
-                    }
-                }
-                return "Succecced";
-            }
-            catch (Exception ex)
-            {
-                return "Error" + ex;
-            }
-        }
-        private void DeleteFile(string fileName)
-        {
-            if (File.Exists(fileName))
-            {
-                File.Delete(fileName);
-            }
-        }
-
-        #endregion
-
         #region Setup, Loading information account
         public frmSoftphone()
         {
             InitializeComponent();
             FormClosing += FrmSoftphone_FormClosing;
+
+            _softPhoneManager.OnUnRegistered += OnUnRegistered;
+            _softPhoneManager.OnIncomingCall += OnIncomingCall;
+            _softPhoneManager.SetupAnswered +=  SetupAnswered;
+            _softPhoneManager.SetupInCall +=    SetupInCall;
+            _softPhoneManager.EndCalling += EndCalling;
+            _softPhoneManager.OnHold += OnHold;
+            _softPhoneManager.OnRinging += OnRinging;
         }
         private void FrmSoftphone_FormClosing(object sender, FormClosingEventArgs e)
         {
             string file = CreatFile("cfgacc.ino");
             WriteFile(file, infoAcc, 5);
-            _softPhone.IncomingCall -= softPhone_inComingCall;
-            _phoneLine.RegistrationStateChanged -= phoneLine_PhoneLineInformation;
-            _softPhone.UnregisterPhoneLine(_phoneLine);
-            _softPhone.Close();
+
         }
         private void frmSoftphone_Load(object sender, EventArgs e)
         {
@@ -765,12 +146,20 @@ namespace Softphone
                     string file = CreatFile("cfgacc.ino");
                     lb_Log.Items.Add("Reading file - " + ReadFile(file, infoAcc, 5));
                     lb_Log.Items.Add("Setting information Account... ");
-                    SetInfoAcc();
-                    InitializeSoftPhone();
+                    var devices = Devices.EnumerateAudioEndPoints(DataFlow.All,
+    NAudio.CoreAudioApi.DeviceState.Active);
+                    arrayDevices = devices.ToArray();
+
+                    _softPhoneManager.InitializeSoftPhone(true,
+                                        infoAcc[0],
+                                        infoAcc[2],
+                                        infoAcc[2],
+                                        infoAcc[3],
+                                        infoAcc[1],
+                                        (infoAcc[4] != "") ? Convert.ToInt32(infoAcc[4]) : 5060);
                     txtNumber.Enabled = false;
 
                 });
-                TimerRegister.Start();
                 timeCheckStatus.Start();
                 this.Text = "Snow-" + infoAcc[0];
             }
@@ -785,7 +174,19 @@ namespace Softphone
         }
 
         #endregion
+        #region Handling Threading
+        private void InvokeGUIThread(Action action)
+        {
+            try
+            {
+                Invoke(action);
+            }
+            catch (Exception ex)
+            {
 
+            }
+        }
+        #endregion
         #region Menu control
         private void btnMinimize_Click(object sender, EventArgs e)
         {
@@ -804,10 +205,16 @@ namespace Softphone
         }
         private void accountToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            frmAccount sipAccount = new frmAccount();
+            ShowAccounts();
+        }
+
+        private void ShowAccounts()
+        {
+            frmAccount sipAccount = new frmAccount(_softPhoneManager);
             sipAccount.Show();
             this.Width = 302;
         }
+
         private void menuParentabout_Click(object sender, EventArgs e)
         {
             this.Width = 826;
@@ -844,13 +251,13 @@ namespace Softphone
             {
                 isActiveNosound = true;
                 btnSpeaker.BackColor = Color.DarkOrange;
-                StartSpeaker();
+                _softPhoneManager.StartSpeaker();
             }
             else
             {
                 isActiveNosound = false;
                 btnSpeaker.BackColor = SystemColors.InfoText;
-                StopSpeaker();
+                _softPhoneManager.StopSpeaker();
             }
         }
         private void btnHold_Click(object sender, EventArgs e)
@@ -887,13 +294,13 @@ namespace Softphone
             {
                 isActiveMute = true;
                 btnMute.BackColor = Color.DarkOrange;
-                StopMicro();
+                _softPhoneManager.StopMicro();
             }
             else
             {
                 isActiveMute = false;
                 btnMute.BackColor = SystemColors.InfoText;
-                StartMicro();
+                _softPhoneManager.StartMicro();
             }
         }
         private void meterSoundMicro_Tick(object sender, EventArgs e)
@@ -904,16 +311,16 @@ namespace Softphone
             int valueMicroMeter = (int)
                 (Math.Round(arrayDevices[1].AudioMeterInformation.MasterPeakValue
                 * 100 + 0.5));
-            
-            int xspeaker = (int)(Math.Round((valueSpeakerMeter / 100.0) * 72 +0.5));
+
+            int xspeaker = (int)(Math.Round((valueSpeakerMeter / 100.0) * 72 + 0.5));
             int xmicro = (int)(Math.Round((valueMicroMeter / 100.0) * 72 + 0.5));
 
             lblHideMicro.Location = new System.Drawing.Point(10 + xmicro, 88);
             lblHide.Location = new System.Drawing.Point(158 + xspeaker, 88);
             pcSpeaker.Value = valueSpeakerMeter;
             pcMicro.Value = valueMicroMeter;
-            
-            
+
+
         }
 
         #region Control time call
@@ -944,40 +351,16 @@ namespace Softphone
 
         #region Status account, Register again, Show error
 
-        #region Registering each 5 seconds (Success => Stop ; Fail more 3 => Stop)
-        private void TimerRegister_Tick(object sender, EventArgs e)
-        {
-            if (!(_phoneLine.RegState == RegState.RegistrationSucceeded))
-            {
-                if (_phoneLine.RegState == RegState.Error)
-                {
-                    SipAccount.StatusCode_ = _phoneLine.RegistrationInfo.StatusCode;
-                    lb_Log.Items.Add("Registration error ");
-                    bool result = SipAccount.Checking();
-                    if (!result)
-                    {
-                        lb_Log.Items.Add(SipAccount.StatusInfor());
-                        llblRetry.Visible = true;
-                        llblAccount.Visible = true;
-                        TimerRegister.Stop();
-                    }
-                    else if (SipAccount.allowRegister_)
-                    {
-                        _softPhone.RegisterPhoneLine(_phoneLine);
-                    }
-
-
-                }
-            }
-        }
-        #endregion
 
         #region Status => Fail => Registering run again
         private void CbxStatus_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (cbxStatus.SelectedIndex == 0)
             {
-                TimerRegister.Start();
+                AsynThread(() =>
+                {
+                    _softPhoneManager.RetryRegister();
+                });
             }
         }
         #endregion
@@ -986,26 +369,22 @@ namespace Softphone
         private void btnRetry_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             llblRetry.Visible = false;
-            SipAccount.RefeshRegister();
             AsynThread(() =>
             {
-                _softPhone.RegisterPhoneLine(_phoneLine);
+                _softPhoneManager.RefreshRegister();
             });
-            TimerRegister.Start();
 
         }
         private void llblAccount_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            frmAccount sipAccount = new frmAccount();
-            sipAccount.Show();
-            this.Width = 302;
+            ShowAccounts();
         }
         #endregion
 
         #region Check Status each 2 seconds
         private void timeCheckStatus_Tick(object sender, EventArgs e)
         {
-            if (_phoneLine.RegState == RegState.RegistrationSucceeded)
+            if (_softPhoneManager.RegState == RegState.RegistrationSucceeded)
             {
                 cbxStatus.SelectedIndex = 1;
                 pbxStatus.Image = Properties.Resources.presenceAvailable;
@@ -1031,6 +410,63 @@ namespace Softphone
         #endregion
 
         #endregion
+        #region Call, Calling Answer Reject Hangup Hold Ignore
+
+        public void Calling()
+        {
+            SetupCalling();
+            AsynThread(() => _softPhoneManager.Calling(txtNumber.Text));
+            RefeshControlCall();
+
+
+
+        }
+        private void Answering()
+        {
+
+            if (_softPhoneManager.Answer())
+            {
+                InvokeGUIThread(() => { lb_Log.Items.Add("Call accepted."); });
+            }
+        }
+        private void Hanguping()
+        {
+            if (_softPhoneManager.Hanguping() == CallState.Rejected)
+            {
+                InvokeGUIThread(() => { lb_Log.Items.Add("Call rejected."); });
+            }
+            else
+            {
+                InvokeGUIThread(() => { lb_Log.Items.Add("Call hanged up."); });
+            }
+        }
+        private void Holding()
+        {
+            if (!isHold)
+            {
+                _softPhoneManager.Hold();
+                isHold = true;
+                InvokeGUIThread(() => { playSound(holding); });
+
+            }
+            else
+            {
+                isHold = false;
+                _softPhoneManager.Unhold();
+                player.Stop();
+            }
+            SetupHolding();
+        }
+        private void Rejecting()
+        {
+            _softPhoneManager.Reject();
+        }
+        private void Ignoring()
+        {
+
+        }
+        #endregion
+
 
         #region Checking isCalling
         private void btnDial_Click(object sender, EventArgs e)
@@ -1214,10 +650,215 @@ namespace Softphone
 
         #endregion
 
-<<<<<<< HEAD
-=======
+        #region Setup When CallEvent Change
+        private void OnIncomingCall(object senderr, EventArgs e)
+        {
+            InvokeGUIThread(() =>
+            {
+                this.Width = 767;
+                lblInfoCall.Text = "InComing";
+                lblName.Text = _softPhoneManager.GetCallerDisplay();
+                lblNumberCaller.Text = _softPhoneManager.GetCallerID();
+                isComing = true;
+                pnlControlIncoming.Visible = true;
+                RefeshControlCall();
+            });
+        }
+        private void OnUnRegistered(object senderr, EventArgs e)
+        {
+            InvokeGUIThread(() =>
+            {
+                lb_Log.Items.Add("SipAccount.StatusInfor()");
+                llblRetry.Visible = true;
+                llblAccount.Visible = true;
+            });
+        }
+        private void OnHold(object senderr, EventArgs e)
+        {
+            playSound(holding);
+        }
+        private void OnRinging(object senderr, EventArgs e)
+        {
+            if (isCalling)
+                playSound(calling);
+            else
+                playSound(ringing);
+        }
+        private void SetupInCall(object senderr, EventArgs e)
+        {
+            player.Stop();
+        }
+        private void SetupAnswered(object senderr, EventArgs e)
+        {
+            player.Stop();
+            InvokeGUIThread(() =>
+            {
+                pnlControlIncoming.Visible = false;
+                isMissing = false;
+                pnlControl.Enabled = true;
+                btnHangup.Visible = true;
+                lblInfoCall.Text = "InCall";
+                RefeshTimerCall();
+                timerCall.Start();
+                meterSoundMicro.Start();
+            });
+        }
+        private void SetupHolding()
+        {
+            if (isActiveHold)
+            {
+                lblInfoCall.Text = "Holding";
+            }
+            else
+            {
+                lblInfoCall.Text = "Incall";
+            }
 
+        }
+        private void EndCalling(object senderr, EventArgs e)
+        {
 
->>>>>>> e74f86a5b436776b7edf81c21cade8a538250bb3
+            InvokeGUIThread(() =>
+            {
+                pnlControl.Enabled = false;
+                pnlControlIncoming.Visible = false;
+                btnHangup.Visible = false;
+                lblInfoCall.Text = "Call Ended";
+                this.Width = 302;
+                timerCall.Stop();
+                lblTimerCall.Visible = false;
+                GetInforIDCall();
+                meterSoundMicro.Stop();
+                playSound(hangup);
+            });
+        }
+        //working on
+        private void GetInforIDCall()
+        {
+            TimeCall infoCallId = new TimeCall();
+            infoCallId.timeCall = lblTimerCall.Text;
+            if (isCalling)
+            {
+                infoCallId.idCall = ListIDCall.calling;
+                infoCallId.name = txtNumber.Text;
+                infoCallId.number = txtNumber.Text;
+            }
+            else if (isComing)
+            {
+                if (isRejecting || isMissing) infoCallId.idCall = ListIDCall.missing;
+                else infoCallId.idCall = ListIDCall.inComing;
+                infoCallId.name = _softPhoneManager.GetCallerDisplay();
+                infoCallId.number = _softPhoneManager.GetCallerID();
+            }
+            Today = DateTime.Now;
+            infoCallId.dateCall = Today.ToShortDateString();
+            infoCallId.timeDateCall = Today.ToShortTimeString();
+            lb_Log.Items.Add(infoCallId.getData());
+            HistoryCall.Add(infoCallId);
+            InfoHistory.Add(infoCallId.getData());
+            txtNumber.Text = string.Empty;
+            txtNumber.Focus();
+        }
+        private void SetupCalling()
+        {
+            btnHangup.Visible = true;
+            isCalling = true;
+            lblInfoCall.Text = "Calling";
+            lblName.Text = txtNumber.Text;
+            lblNumberCaller.Text = txtNumber.Text;
+            //isMissing = false;
+        }
+        private void RefeshIdCall()
+        {
+            isCalling = false;
+            isComing = false;
+            isRejecting = false;
+            isMissing = true;
+        }
+        private void RefeshTimerCall()
+        {
+            lblTimerCall.Text = "00:00";
+            lblTimerCall.Visible = true;
+            minuteCall = 0;
+            secondCall = 0;
+
+        }
+        private void RefeshControlCall()
+        {
+            isActiveHold = false;
+            isActiveMute = false;
+            isActiveNosound = false;
+            isActiveRecord = false;
+            btnHold.BackColor = SystemColors.InfoText;
+            btnSpeaker.BackColor = SystemColors.InfoText;
+            btnMute.BackColor = SystemColors.InfoText;
+            btnRecord.BackColor = SystemColors.InfoText;
+        }
+        #endregion
+
+        #region Handling File ,Setup information Account
+
+        private string CreatFile(string fileName)
+        {
+            //create path file
+            string file = Environment.CurrentDirectory + @"\" + fileName;
+
+            if (!File.Exists(file))
+            {
+                File.CreateText(file);
+            }
+            return file;
+        }
+        private string WriteFile(string fileName, string[] info, int numberLine)
+        {
+            //writing information into file
+            try
+            {
+                //if (!File.Exists(fileName)) return "Error";
+                using (StreamWriter accountConfig = new StreamWriter(fileName))
+                {
+                    //writing    
+                    for (int i = 0; i < numberLine; ++i)
+                    {
+                        accountConfig.WriteLine(info[i]);
+                    }
+
+                }
+                return "Succecced";
+            }
+            catch (Exception ex)
+            {
+                return "Error" + ex;
+            }
+        }
+        private string ReadFile(string fileName, string[] info, int numberLine)
+        {
+            //if (!File.Exists(fileName)) return "Error";
+            try
+            {
+                using (StreamReader accountConfig = new StreamReader(fileName))
+                {
+                    //reading 
+                    for (int i = 0; i < numberLine; ++i)
+                    {
+                        info[i] = accountConfig.ReadLine();
+                    }
+                }
+                return "Succecced";
+            }
+            catch (Exception ex)
+            {
+                return "Error" + ex;
+            }
+        }
+        private void DeleteFile(string fileName)
+        {
+            if (File.Exists(fileName))
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        #endregion
     }
 }

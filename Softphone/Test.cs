@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Windows.Forms;
 using Ozeki.Media;
+using Ozeki.Media.MediaHandlers;
 using Ozeki.VoIP;
+using Ozeki.VoIP.SDK;
 
 namespace Softphone
 {
@@ -36,7 +38,7 @@ namespace Softphone
             try
             {
                 var userAgent = "MyFirstSoftPhone-3-example";
-                _softPhone = SoftPhoneFactory.CreateSoftPhone(SoftPhoneFactory.GetLocalIP(), 5700, 5750, userAgent);
+                _softPhone = SoftPhoneFactory.CreateSoftPhone(SoftPhoneFactory.GetLocalIP(), 5700, 5750/*, userAgent*/);
                 InvokeGUIThread(() => { lb_Log.Items.Add("Softphone created!"); });
 
                 _softPhone.IncomingCall += softPhone_inComingCall;

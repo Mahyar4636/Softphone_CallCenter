@@ -1,17 +1,12 @@
-﻿using System;
+﻿using Ozeki.Media.MediaHandlers;
+using Ozeki.VoIP;
+using Ozeki.VoIP.SDK;
+using System;
+using System.Drawing;
 using System.IO;
 using System.Media;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
 using System.Windows.Forms;
-using Ozeki.Media;
-using Ozeki.VoIP;
 
 
 namespace Softphone
@@ -57,7 +52,7 @@ namespace Softphone
                 var userAgent = "Snowday";
                 _softPhone = SoftPhoneFactory.CreateSoftPhone(
                     SoftPhoneFactory.GetLocalIP(), 
-                    7000, 9000, userAgent);
+                    7000, 9000/*, userAgent*/);
                
                 InvokeGUIThread(() => {
                     lb_Log.Items.Add("Softphone created!");

@@ -106,7 +106,6 @@ namespace Softphone
             this.btnHold = new System.Windows.Forms.Button();
             this.btnSpeaker = new System.Windows.Forms.Button();
             this.btnMute = new System.Windows.Forms.Button();
-            this.TimerRegister = new System.Windows.Forms.Timer(this.components);
             this.timeCheckStatus = new System.Windows.Forms.Timer(this.components);
             this.timerCall = new System.Windows.Forms.Timer(this.components);
             this.meterSoundMicro = new System.Windows.Forms.Timer(this.components);
@@ -1088,11 +1087,6 @@ namespace Softphone
             this.btnMute.UseVisualStyleBackColor = false;
             this.btnMute.Click += new System.EventHandler(this.btnMute_Click);
             // 
-            // TimerRegister
-            // 
-            this.TimerRegister.Interval = 5000;
-            this.TimerRegister.Tick += new System.EventHandler(this.TimerRegister_Tick);
-            // 
             // timeCheckStatus
             // 
             this.timeCheckStatus.Interval = 2000;
@@ -1186,7 +1180,6 @@ namespace Softphone
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.LinkLabel llblRetry;
         private System.Windows.Forms.LinkLabel llblAccount;
-        private System.Windows.Forms.Timer TimerRegister;
         private System.Windows.Forms.Timer timeCheckStatus;
         private System.Windows.Forms.TextBox txtNumber;
         private System.Windows.Forms.Panel pnlControlMain;

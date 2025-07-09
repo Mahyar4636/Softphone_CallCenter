@@ -13,7 +13,8 @@ namespace Softphone
 {
     public partial class frmAccount : Form
     {
-        
+        private readonly SoftPhoneManager _frmSoftphone;
+
         #region Handling Threading
         public void AsynThread(Action action)
         {
@@ -27,9 +28,10 @@ namespace Softphone
             }
         }
         #endregion
-        public frmAccount()
+        public frmAccount(SoftPhoneManager frmSoftphone)
         {
             InitializeComponent();
+            _frmSoftphone = frmSoftphone;
         }
         private void btnDisplay_Click(object sender, EventArgs e)
         {
@@ -50,13 +52,13 @@ namespace Softphone
         }
         private void CheckStatus()
         {
-            if (frmSoftphone._phoneLine.RegState == RegState.RegistrationSucceeded)
+            if (_frmSoftphone.RegState != RegState.RegistrationSucceeded)
             {
-                this.Text = "Online";
+                this.Text = "Offline";
             }
             else
             {
-                this.Text = "Offline";
+                this.Text = "Online";
             }
         }
         private void frmAccount_Load(object sender, EventArgs e)
@@ -75,8 +77,14 @@ namespace Softphone
             frmSoftphone.infoAcc[3] = txtPassword.Text;
             refeshStatus.Stop();
             AsynThread(() => {
-                frmSoftphone.SetInfoAcc();
-                frmSoftphone.RefeshRegister();
+                _frmSoftphone.InitializeSoftPhone(true,
+                                        frmSoftphone.infoAcc[0],
+                                        frmSoftphone.infoAcc[2],
+                                        frmSoftphone.infoAcc[2],
+                                        frmSoftphone.infoAcc[3],
+                                        frmSoftphone.infoAcc[1],
+                                        (frmSoftphone.infoAcc[4] != "") ? Convert.ToInt32(frmSoftphone.infoAcc[4]) : 5060);
+                _frmSoftphone.RefreshRegister();
             });
             CheckStatus();
             refeshStatus.Start();
